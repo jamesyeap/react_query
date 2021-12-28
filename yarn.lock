@@ -1014,7 +1014,7 @@
     core-js-pure "^3.19.0"
     regenerator-runtime "^0.13.4"
 
-"@babel/runtime@^7.10.2", "@babel/runtime@^7.11.2", "@babel/runtime@^7.12.5", "@babel/runtime@^7.16.3", "@babel/runtime@^7.5.5", "@babel/runtime@^7.6.2", "@babel/runtime@^7.7.2", "@babel/runtime@^7.8.4", "@babel/runtime@^7.9.2":
+"@babel/runtime@^7.10.2", "@babel/runtime@^7.10.5", "@babel/runtime@^7.11.2", "@babel/runtime@^7.12.5", "@babel/runtime@^7.16.3", "@babel/runtime@^7.5.5", "@babel/runtime@^7.6.2", "@babel/runtime@^7.7.2", "@babel/runtime@^7.8.4", "@babel/runtime@^7.9.2":
   version "7.16.5"
   resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.16.5.tgz#7f3e34bf8bdbbadf03fbb7b1ea0d929569c9487a"
   integrity sha512-TXWihFIS3Pyv5hzR7j6ihmeLkZfrXGxAr5UfSl8CHf+6q/wpiYDkUau0czckpYG8QmnCIuPpdLtuA9VmuGGyMA==
@@ -5730,6 +5730,14 @@ makeerror@1.0.12:
   dependencies:
     tmpl "1.0.5"
 
+match-sorter@^4.1.0:
+  version "4.2.1"
+  resolved "https://registry.yarnpkg.com/match-sorter/-/match-sorter-4.2.1.tgz#575b4b3737185ba9518b67612b66877ea0b37358"
+  integrity sha512-s+3h9TiZU9U1pWhIERHf8/f4LmBN6IXaRgo2CI17+XGByGS1GvG5VvXK9pcGyCjGe3WM3mSYRC3ipGrd5UEVgw==
+  dependencies:
+    "@babel/runtime" "^7.10.5"
+    remove-accents "0.4.2"
+
 match-sorter@^6.0.2:
   version "6.3.1"
   resolved "https://registry.yarnpkg.com/match-sorter/-/match-sorter-6.3.1.tgz#98cc37fda756093424ddf3cbc62bfe9c75b92bda"
@@ -7043,6 +7051,13 @@ react-is@^17.0.1:
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/react-is/-/react-is-17.0.2.tgz#e691d4a8e9c789365655539ab372762b0efb54f0"
   integrity sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==
+
+react-query-devtools@^2.6.3:
+  version "2.6.3"
+  resolved "https://registry.yarnpkg.com/react-query-devtools/-/react-query-devtools-2.6.3.tgz#f7c982839d4b0001cee4d5ddfa826493c2f6341f"
+  integrity sha512-pSvWq5Q8zgIP7QbF0+4BerCHLaLn5HPzce7sIXYqz4XEizcYJHkJtcrAwn6bUkCu5JmAt1Y7fViQtZwOIG2SYA==
+  dependencies:
+    match-sorter "^4.1.0"
 
 react-query@^3.34.6:
   version "3.34.6"
