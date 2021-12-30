@@ -262,3 +262,118 @@ const postsQuery = useQuery('posts', fetchPosts, {
 	onSettled: (data, error) => { data ? console.log(data) : console.log(error); }
 })
 ```
+
+## Scroll Restoration
+As long as data used in a Query is still inside the cache, the user's last-scrolled position in the page will be restored. However, if the data is removed from the cache (through garbage-collection), the user's last-scrolled position will not be restored, as the data will have to be fetched again, creating an entirely new component(?). <- actually not too sure if a new component will be created because of this
+
+To ensure that the user's last-scrolled position is kept around, just ensure that the `cacheTime` of the Query is long enough.
+
+```javascript
+const postQuery = useQuery('posts', fetchPosts, {
+	cacheTime: 10000, // data will be kept inside the cache for 10 seconds, and so will the user's last-scrolled position.
+})
+```
+
+## Query Polling with Refetch Intervals
+To refetch a Query at set time-intervals (such as refetching every 5 seconds), do the following:
+```javascript
+const queryInfo = useQuery('queryKey', queryFn, {
+	refetchInterval: 5000, // re-fetches once every 5 seconds
+	refetchIntervalInBackground: true // default: false -> if false, refetching is only done when the user has focused on the window
+});
+```
+
+## Query Invalidation Basics
+To manually refetch a Query (possible use-case: a refresh button), do the following:
+```javascript
+function Posts() {
+	const queryClient:any = useQueryClient();
+
+	const postsQuery = useQuery('posts', fetchPosts);
+
+	// when clicked, the button below will refetch the Query with the QueryKey 'posts'
+	return (
+		<div>
+			<button onClick={() => queryClient.invalidateQueries('posts')}>Refetch</button>
+		</div>
+	)
+}
+```
+
+## Invalidating and Refetching Inactive Queries
+By default, Queries that are not active (ie the Query's data is not shown on screen), they will not be re-fetched immediately when they are invalidated. Instead, they will only be marked as `stale`, and re-fetched only when they become active again.
+
+If you want the Query to be re-fetched in the background, do the following:
+```javascript
+function Posts() {
+	const queryClient:any = useQueryClient();
+
+	const postsQuery = useQuery('posts', fetchPosts);
+
+	// pass in a config object to the invalidateQueries call
+	return (
+		<div>
+			<button onClick={() => queryClient.invalidateQueries('posts', {
+				refetchInactive: true; // default: false
+			})}>Refetch</button>
+		</div>
+	)
+}
+```
+
+## Invalidating Multiple Queries with Similar Query Keys
+Invalidating a `QueryKey` invalidates all Queries with the `QueryKey` alone and with the `QueryKey` as the prefix. 
+
+For example,
+```javascript
+function Random() {
+	const queryClient:any = useQueryClient();
+
+	const randomQuery_A = useQuery(['random', 'A'], fetchRandomNumber);
+	const randomQuery_B = useQuery(['random', 'B'], fetchRandomNumber);
+	const randomQuery_C = useQuery(['random', 'C'], fetchRandomNumber);
+
+	// clicking on the button will refetch randomQuery_A, randomQuery_B and randomQuery_C
+	return (
+		<div>
+			<button onClick={() => queryClient.invalidateQueries('random')}>Refetch</button>
+		</div>
+	)
+}
+```
+
+## Basic Query Pre-Fetching
+To complete a Query before the relevant component mounts (such as loading things in the background), do the following:
+```javascript
+import { useState, useEffect } from 'react' // you'll need useEffect for this
+
+const fetchPosts = async () => {
+	// call axios here
+}
+
+function App() {
+	const queryClient:any = useQueryClient();
+
+	const [showPosts, setShowPosts] = useState<boolean>(false);
+
+	// prefetches the data needed for 'posts'
+	useEffect(() => {
+		queryClient.prefetchQuery('posts', fetchPosts)
+	}, []); // add an empty dependency array in useEffect so that the prefetching is only done once
+
+	return (
+		<div>
+			<button onClick={() => setShowPosts(!showPosts)}> See/Hide </button>
+			{showPosts && <Posts />}
+		</div>
+	)
+}
+
+function Posts() {
+	// this query would already be completed inside App even if Posts is hidden!
+	const postsQuery = useQuery('posts', fetchPosts);
+
+	// ...more stuff here
+}
+
+```
