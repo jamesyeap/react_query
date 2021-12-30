@@ -158,7 +158,7 @@ axios
 
 Also, note that when a Query is still waiting on another Query to be successfully completed, it's state will be `isIdle`, not `isLoading`.
 
-## Supplying a Query with Initial Data (Pull Approach)
+## Supplying a Query with Initial Data
 To supply a Query with initial data, do the following:
 
 ```javascript
@@ -186,8 +186,8 @@ const queryInfo = useQuery('queryKey', queryFn, {
 ```
 This is useful when placeholder data is used for `initialData`, and you want to fetch actual data and replace the placeholder data with it as soon as the component mounts.
 
-## Seeding Initial Query Data from Other Queries (Push Approach)
-In cases where a Query's data has been fetched by another Query (such as data for a specific Post being already fetched by a Query fetching data for all Posts), you can actually use the data already obtained as the `initialData` for the aforementioned Query.
+## Seeding Initial Query Data from Other Queries (Pull Approach)
+In cases where a Query's data has been fetched by another Query (such as data for a specific Post being already fetched by a Query fetching data for all Posts), you can actually pull the data already obtained as the `initialData` and use it in the `initialState` for the aforementioned Query.
 
 To do so,
 ```javascript
@@ -224,7 +224,7 @@ function Post(postId) {
 }
 ```
 
-## Using Query Data to Seed Future Queries
+## Using Query Data to Seed Future Queries (Push Approach)
 In the above-approach, in each child Query, you're pulling data from the parent Query and setting the `initialState` for the child Query.
 
 An alternative approach would be pre-generating child Queries once the parent Query has been successfully completed, like so:
