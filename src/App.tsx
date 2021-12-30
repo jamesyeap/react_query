@@ -159,10 +159,19 @@ interface Post {
 }
 
 function Posts({setPostId}: {setPostId: (postId: number) => void}) {
-  const postsQuery = useQuery('posts', () =>
-    axios
+  const queryClient:any = useQueryClient();
+
+  const postsQuery = useQuery('posts', async () => {
+    const posts = await axios
       .get("https://jsonplaceholder.typicode.com/posts")
       .then(res => res.data)
+
+    posts.forEach((post:any) => 
+      queryClient.setQueryData(['post', post.id], post)
+    );
+
+    return posts;
+    }
   )
 
   console.log(postsQuery.data)
@@ -193,12 +202,12 @@ function Posts({setPostId}: {setPostId: (postId: number) => void}) {
 }
 
 function Post({postId, setPostId}: {postId:number, setPostId: (postsId:number) => void}) {
-  const queryClient:any = useQueryClient();
+  // const queryClient:any = useQueryClient();
 
   const postQueryParams = {
     initialStale: false,
     staleTime: Infinity, // never refetch
-    initialData: () => queryClient.getQueryData('posts')?.find((post:any) => post.id === postId)
+    // initialData: () => queryClient.getQueryData('posts')?.find((post:any) => post.id === postId)
   }
 
   const postQuery = useQuery(['post', postId], async () => {
