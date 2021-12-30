@@ -110,3 +110,116 @@ const queryKey_B = ["label", "data"]; // more descriptive!
 const queryInfo = useQuery(queryKey_B, queryFn);
 ```
 This makes it clearer what is being fetched when looking at React Dev-Tools.
+
+
+## Automatic Query Retries
+By default, if a Query fails (such as when an error 404 is returned), React Query will retry it a couple of times; each time waiting a little bit longer before another attempt is made (increasing the amount of delay between retries).
+
+To change this,
+```
+const queryInfo = useQuery('queryKey', queryFn, {
+	retry: 2, // maximum of 2 retries will be attempted
+	retryDelay: 1000 // 1 second between retries
+});
+```
+
+To increase the amount of delay between retries,
+```
+const queryInfo = useQuery('queryKey', queryFn, {
+	retry: 2,
+	retryDelay: attemptIndex => 1000 * (2 ** attemptIndex); // amount of delay will double between retries
+});
+```
+
+## Query Cancellation
+For invalid Queries (such as when an error 404 is returned), you won't want to cache the data returned.
+
+// TODO: place code-snippet here
+
+## Dependent Queries
+If a Query needs data from another Query in order to proceed (example: fetching Posts from a User needs the user's details such as user_id to be fetched first before Posts from the user can be fetched), use the following:
+
+```
+const userQuery = useQuery('user', () => 
+    axios
+      .get(`https://jsonplaceholder.typicode.com/users?email=${email}`)
+      .then(res => res.data[0])
+)
+
+// postsQuery needs data fetched from userQuery before it can proceed
+const postsQuery = useQuery('posts', () => 
+axios
+	.get(`https://jsonplaceholder.typicode.com/posts?userId=${userQuery.data.id}`)
+	.then(res => res.data), {
+	enabled: (userQuery.data?.id !== undefined), // use this to check
+	}
+)
+```
+
+Also, note that when a Query is still waiting on another Query to be successfully completed, it's state will be `isIdle`, not `isLoading`.
+
+## Supplying a Query with Initial Data
+To supply a Query with initial data, do the following:
+
+```
+const existingData = {
+	id: 1,
+	name: "Jack"
+}
+
+const queryInfo = useQuery('queryKey', queryFn, {
+	initialData: existingData
+});
+```
+
+Doing so causes the Query to not fetch any data initially, but it can still update when the Query is stale.
+
+## Marking Initial Data as Stale
+By default, a Query filled with `initialData` is not marked as `stale` and will be treated as any other successfully completed Query.
+
+To change this,
+```
+const queryInfo = useQuery('queryKey', queryFn, {
+	initialData: existingData,
+	initialStale: true // Query with initialData will now be marked as stale immediately
+});
+```
+This is useful when placeholder data is used for `initialData`, and you want to fetch actual data and replace the placeholder data with it as soon as the component mounts.
+
+## Seeding Initial Query Data from Other Queries
+In cases where a Query's data has been fetched by another Query (such as data for a specific Post being already fetched by a Query fetching data for all Posts), you can actually use the data already obtained as the `initialData` for the aforementioned Query.
+
+To do so,
+```
+import { useQueryClient } from 'react-query' // you will need an additional component from React Query
+
+// fetches data for all Posts
+function Posts() {
+	const postsQuery = useQuery('posts', () =>
+		axios
+			.get("https://jsonplaceholder.typicode.com/posts")
+			.then(res => res.data)
+	)
+
+	// ...other stuff
+}
+
+// displays specific data for one Post
+function Post(postId) {
+	// to access the queryClient
+	const queryClient:any = useQueryClient();
+
+	const postQuery = useQuery(['post', postId], () => 
+		axios
+			.get(`https://jsonplaceholder.typicode.com/posts/${postId}`)
+			.then(res => res.data)
+		, 
+		{
+			// search pre-fetched data to see if this post has already been fetched
+			initialData: () => queryClient.getQueryData('posts')?.find((post:any) => post.id === postId)
+		}
+	)
+
+	// ...other stuff
+}
+```
