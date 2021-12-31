@@ -57,7 +57,7 @@ const queryInfo = useQuery('queryKey', queryFn, {
 When multiple components call `useQuery` using the same `queryKey`, only 1 actual-request will be made, which saves data.
 
 For example,
-```
+```javscript
 const queryKey = 'pokemon';
 
 const queryInfo_A = useQuery(queryKey, queryFn);
@@ -376,4 +376,233 @@ function Posts() {
 	// ...more stuff here
 }
 
+```
+
+## Hover-Based Query Pre-Fetching
+To complete a Query when a user hovers over a component (such as a link), pass the call to `prefetchQuery` to the attribute `onMouseEnter` of the aforementioned component.
+
+A short example
+```javascript
+function App() {
+	const queryClient:any = useQueryClient();
+
+	const post:any = {
+		id: 1;
+	}
+
+	return (
+		<li 
+			key={post.id}
+			// pass a function to call prefetchQuery here
+			onMouseEnter={() => {
+				queryClient.prefetchQuery(['posts', post.id], fetchPosts(post.id)) // will fetch the details for post with id=1 here
+			}}
+		>
+		Will prefetch when mouse hovers over this list item.
+		</li>
+	)
+}
+```
+
+## Pre-Fetching and Stale-Time
+To avoid pre-fetching a Query every time the user hovers over the component, pass in a config object to the call to `prefetchQuery`, like so:
+```javascript
+function App() {
+	const queryClient:any = useQueryClient();
+
+	const post:any = {
+		id: 1;
+	}
+
+	return (
+		<li 
+			key={post.id}
+			onMouseEnter={() => {
+				queryClient.prefetchQuery(['posts', post.id], fetchPosts(post.id), {
+					staleTime: Infinity, // only pre-fetches once
+				})
+			}}
+		>
+		Will prefetch when mouse hovers over this list item.
+		</li>
+	)
+}
+```
+
+## Forced Pre-Fetching
+By default, pre-fetching will not be done for Queries that are not yet `stale`. To pre-fetch Queries regardless if they are `stale` or not, pass in a SECOND config object to the call to `prefetchQuery`, like so:
+```javascript
+function App() {
+	const queryClient:any = useQueryClient();
+
+	const post:any = {
+		id: 1;
+	}
+
+	return (
+		<li 
+			key={post.id}
+			onMouseEnter={() => {
+				queryClient.prefetchQuery(
+					['posts', post.id], 
+					fetchPosts(post.id),
+					null, // attribute "force" is not in the first config object,
+					{     // and is found in the second config object
+						force: true
+					}
+				)
+			}}
+		>
+		Will prefetch when mouse hovers over this list item.
+		</li>
+	)
+}
+```
+
+## Mutations with the useMutation Hook
+For any CREATE, UPDATE or DELETE requests sent to the database, the data stored will change (assuming requests are successful of course). 
+
+This means that the data fetched previously from our Queries may become invalid.
+To keep data in the frontend application in-sync with the database, use the `useMutation` hook from React Query:
+
+```javascript
+
+// other stuff here...
+
+const postFunction = async (values) => {
+	axios.post('/api/posts', values)
+}
+
+// useMutation returns 2 things:
+//		the postFunction itself (in this case, postFunction can now be accessed with createPost)
+//		the status of the postFunction itself, (in this case, createPostInfo)
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onSuccess: () => {
+			queryClient.invalidateQueries('posts') // after creating a new post, tell React Query to fetch the new list of Posts.
+		}
+	}
+)
+
+// createPostInfo has the following attributes:
+//		isLoading
+//		isError
+//		isSuccess
+// which is useful for changing components in the UI to let the user know the state of the request.
+```
+## Mutations Side-Effects
+In addition to fetching the updated set of data on successful mutations, it is also possible to pass in functions to be called on other outcomes (such as unsuccessful mutations).
+
+Example
+```javascript
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onSuccess: () => {
+			queryClient.invalidateQueries('posts')
+		},
+		onError: (error) => { // displays the error to the user in a pop-up window
+			window.alert(error.response.data.message)
+		},
+		onSettled: () => {	// runs when the mutation request has been completed
+			console.log("request done")
+		}
+	}
+)
+```
+
+## Updating Query Data with Mutation Responses
+Instead of refetching the whole list of data after updating a specific item (such as refetching all Posts after updating a single Post), we can just refetch the Query for the updated item, like so:
+```javascript
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onSuccess: (data, values) => {
+			// only refetch the updated Post!
+			queryClient.invalidateQueries(['post', String(value.id)])
+		}
+	}
+)
+```
+
+An alternative to the above is, instead of refetching the Query for the updated item, if the updated data for the item is returned by the response of the server, we can just replace its Query with the updated data.
+```javascript
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onSuccess: (data, values) => {
+			// replaces the Query with the updated data so that the user sees the change as soon as possible
+			queryClient.setQueryData(['post', String(values.id)], data);
+			// to be 100% sure that the data is in-sync with the server, it's good to just do another re-fetch for the Query
+			queryClient.invalidateQueries(['post', String(value.id)])
+		}
+	}
+)
+```
+
+## Optimistic Updates for List-Like Queries
+In between sending a mutation-request to the server, getting a response (whether or not it was successful), and refetching the updated data from the server, there may be some delay. Where appropriate, we can assume that the mutation-request was successful (hence optimistic), and display what the user would see when the request eventually completes.
+
+To do so, we pass in an additional attribute to the config object in the `useMutation` hook:
+```javascript
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onMutate: (values) => {
+			queryClient.setQueryData('posts', (oldPosts) => {
+				// append a new object to the current list of posts	
+				return [
+					...oldPosts,
+					// the new object will have mocked value(s) since it's not actually from the server
+					{
+						...values,
+						id: Date.now() // mocked value (because we don't know the id of the new Post yet)
+					}
+				]
+			})
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries('posts') // and if all goes well, the data returned by the re-fetch will look exactly the same as the mocked one, and the user won't see anything
+		}
+	}
+)
+```
+This makes the user-experience more "snappy".
+
+## Rollbacks for Optimistic Updates for List-Like Queries
+In optimistic updates, there is a risk that the mutation fails. To rollback the optimistic update in this scenario, do the following:
+```javascript
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onMutate: (values) => {
+			// save a snapshot of the data prior to the optimistic-update
+			const oldPosts = useClient.getQueryData('posts')
+
+			queryClient.setQueryData('posts', (oldPosts) => {
+				return [
+					...oldPosts,
+					{
+						...values,
+						id: Date.now()
+					}
+				]
+			})
+
+			// and return it
+			return oldPosts;
+
+			// alternative
+			// return () => queryClient.setQueryData('posts', oldData)
+		},
+		// oldData is an object returned by the function passed to "onMutate" and can be anything; even a function
+		onError: (error, values, oldData) => {
+			queryClient.setQueryData('posts', oldData)
+
+			// alternative 
+			// oldData(); // oldData will be a function here
+		}
+	}
+)
 ```
