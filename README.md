@@ -606,3 +606,111 @@ const [createPost, createPostInfo] = useMutation(
 	}
 )
 ```
+
+## Optimistic Updates for Single Entity Queries
+An alternative to changing the parent Query (by applying the optimistic update to the entire list), we can instead change the Query for the specific-resource itself like so:
+```javascript
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onMutate: (values) => {
+			// set data stored in the cache to the updated data
+			queryClient.setQueryData(['post', String(values.id)], values)
+		},		
+		onSuccess: (data, values) => {
+			// just-in-case check 1: set data in the cache to that returned by the response
+			queryClient.setQueryData(['post', String(values.id)], data)
+			// just-in-case check 2: to be even more safe, we re-fetch the data from the server for this specific request to be doubly-sure that we are in-sync
+			queryClient.invalidateQueries(['post', String(values.id)])
+		}
+	}
+)
+```
+
+## Rollbacks for Optimistic Updates for Single Entity Queries
+```javascript
+const [createPost, createPostInfo] = useMutation(
+	postFunction,
+	{
+		onMutate: (values) => {
+			const oldPost = queryClient.getQueryData(['post', String(values.id)]);
+
+			queryClient.setQueryData(['post', String(values.id)], values)
+
+			// return a rollback function for onError case
+			return () => queryClient.setQueryData(['post', String(values.id)], oldPost);
+		},		
+		onError: (error, values, rollback) => {
+			// rollback the optimistic update if there is an error
+			if (rollback) { rollback(); }
+		}
+	}
+)
+```
+
+## Paginated Queries
+```javascript
+import { usePaginatedQuery } from 'react-query'; // use a variant of useQuery
+
+const [page, setPage] = useState<number>(0); // tracks which page the user is on (incremented/decremented using a "previous" or "next" page button in the UI)
+
+const postsQuery = usePaginatedQuery(
+	// use a complex queryKey so that a new Query will be created when the page changes
+	['posts', { page }], 
+	() => {
+		axios
+			.get('/api/posts', {
+				params: {
+					// note: name of the attributes is API-specific (may not be pageSize or pageOffset)
+					pageSize: 10, // indicates how many data items you want for this page
+					pageOffset: page, // indicates which page's data you want
+				}
+			})
+			.then((res) => res.data)
+	}
+	)
+
+// besides everything that useQuery returns, usePaginatedQuery also returns two additional objects:
+console.log(postsQuery.resolvedData); // the most-recent set of data that was successfully fetched (good to fallback on if nothing is returned for latestData)
+console.log(postsQuery.latestData); // the data for this request
+
+// to check if there the "Next Page" button should be disabled,
+//		assuming that the API will always include a "nextPageOffset" attribute in the response that is sends when there is more data after this page,
+//		if the attribute is not in the response object, we can assume that there is no more data
+<button disabled={!postsQuery.latestData?.nextPageOffset}> 
+	Next Page
+</button>
+
+// to check if the "Previous Page" button should be disabled is trivial
+<button disabled={page === 0}>
+	Previous Page
+</button>
+```
+
+## Pre-Fetching Paginated Queries
+```javascript
+
+// using the same function-signature for queryFn passed into the prefetchQuery call (which takes in two parameters)
+const fetchPosts = (_, { page }) => { // _ for function parameter as we do not need the first queryKey
+	axios
+		.get('/api/posts', {
+			params: {
+				// note: name of the attributes is API-specific (may not be pageSize or pageOffset)
+				pageSize: 10, // indicates how many data items you want for this page
+				pageOffset: page, // indicates which page's data you want
+			}
+		})
+		.then((res) => res.data)
+}
+
+// run the pre-fetch on each render if there is a next-page
+useEffect(() => {
+	queryClient.prefetchQuery(
+		['posts', { page: postsQuery.latestData?.nextPageOffset }],
+		fetchPosts
+	)}
+, [postsQuery.latestData?.nextPageOffset])
+```
+
+## Infinite Queries
+For UI where pages are seamless (such as infinite scrolls where more items are loaded when the user scrolls to the bottom), the `useInfiniteQuery` hook is handy. 
